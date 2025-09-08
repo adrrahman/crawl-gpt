@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "scrape-gpt"
+version = "0.1.0"
+description = ""
+authors = ["Abdurrahman"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+playwright = "^1.55.0"
+langchain = "^0.3.27"
+langchain-openai = "^0.3.32"
+langchain-google-genai = "^2.1.10"
+langgraph = "^0.6.7"
+pillow = "^11.3.0"
+python-dotenv = "^1.1.1"
+nest-asyncio = "^1.6.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
