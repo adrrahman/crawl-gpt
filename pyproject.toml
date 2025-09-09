@@ -15,6 +15,7 @@ langgraph = "^0.6.7"
 pillow = "^11.3.0"
 python-dotenv = "^1.1.1"
 nest-asyncio = "^1.6.0"
+browser-use = "^0.7.6"
 
 
 [build-system]
