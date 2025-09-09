@@ -1,5 +1,6 @@
 import asyncio
 import os
+import argparse
 
 from browser_use import Agent, Browser, ChatGoogle, ChatOpenAI
 from dotenv import load_dotenv
@@ -8,6 +9,12 @@ from langchain_openai import ChatOpenAI as LangchainChatOpenAI
 from pydantic import BaseModel
 
 load_dotenv()
+
+
+class Search(BaseModel):
+    search_ranch: bool = False
+    search_epd: bool = False
+    search_animal: bool = False
 
 
 class RanchProfile(BaseModel):
@@ -74,11 +81,63 @@ def create_llm():
 
 
 async def main(task: str):
+    chat = create_chat()
+    chat_task = chat.with_structured_output(Search)
+    search_task = chat_task.invoke(task)
+
+    browser = Browser(keep_alive=True)
+    await browser.start()
+
     agent = Agent(
-        task=task,
+        task=task + " Use extract_structured_data tool to data as JSON list of dictionaries",
         llm=create_llm(),
+        browser_session=browser,
     )
-    await agent.run()
+    history = await agent.run()
+    if not search_task.search_ranch and not search_task.search_epd and not search_task.search_animal:
+        return history.final_result()
+    else:
+        browser_session = agent.browser_session
+        cdp_session = await browser_session.get_or_create_cdp_session()
+        try:
+            body_id = await cdp_session.cdp_client.send.DOM.getDocument(
+                session_id=cdp_session.session_id
+            )
+            page_html_result = await cdp_session.cdp_client.send.DOM.getOuterHTML(
+                params={"backendNodeId": body_id["root"]["backendNodeId"]},
+                session_id=cdp_session.session_id,
+            )
+            page_html = page_html_result["outerHTML"]
+            _ = await browser_session.get_current_page_url()
+        except Exception as e:
+            raise RuntimeError(f"Couldn't extract page content: {e}")
+
+        llm = create_chat()
+        if search_task.search_ranch:
+            structured_llm = llm.with_structured_output(RanchProfile)
+            extra_prompt = "(from start to end: type, member, prefix, member_name, dba, city, state_or_province)"
+        elif search_task.search_epd:
+            structured_llm = llm.with_structured_output(EPDAnimal)
+            extra_prompt = ""
+        elif search_task.search_animal:
+            structured_llm = llm.with_structured_output(Animal)
+            extra_prompt = ""
+        if search_task.search_epd:
+            rows = page_html.split("onmouseover")[2:]
+        else:
+            rows = page_html.split("onmouseover")[1:]
+        results = []
+        for row in rows:
+            response = structured_llm.invoke(
+                f"extract the data from this html table row {extra_prompt} and convert to json:\n\n{row}"
+            )
+            results.append(response)
+            print(response.model_dump_json())
+
+        print("Agent complete, stopping browser")
+        await browser.kill()
+
+        return results
 
 
 async def ranch_search_all(debug: bool = True):
@@ -123,6 +182,7 @@ async def ranch_search_all(debug: bool = True):
         print(response.model_dump_json())
 
     print("Ranch Agent complete, stopping browser")
+    await browser.kill()
 
 
 async def epd_search_all(debug: bool = True):
@@ -166,6 +226,7 @@ async def epd_search_all(debug: bool = True):
         print(response.model_dump_json())
 
     print("EPD Agent complete, stopping browser")
+    await browser.kill()
 
 
 async def animal_search_all(debug: bool = True):
@@ -209,7 +270,16 @@ async def animal_search_all(debug: bool = True):
         print(response.model_dump_json())
 
     print("Animal Agent complete, stopping browser")
+    await browser.kill()
 
 
 if __name__ == "__main__":
-    asyncio.run(main("Navigate https://shorthorn.digitalbeef.com/ and find all ranches, prioritize using each dropdown instead of text box in form. Use extract_structured_data tool using schema provided."))
+    parser = argparse.ArgumentParser(description="Run scraping agents.")
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        required=True,
+        help="Specify description to run",
+    )
+    args = parser.parse_args()
+    asyncio.run(main(args.prompt))
