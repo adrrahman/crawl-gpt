@@ -4,7 +4,6 @@ import os
 import platform
 import random
 import re
-from getpass import getpass
 from io import BytesIO
 from typing import List, Optional
 
@@ -22,12 +21,6 @@ from PIL import Image
 from playwright.async_api import Page, async_playwright
 from typing_extensions import TypedDict
 
-# Setup environment variables
-# def _getpass(env_var: str):
-#     if not os.environ.get(env_var):
-#         os.environ[env_var] = getpass(f"{env_var}=")
-
-# _getpass("OPENAI_API_KEY")
 load_dotenv()
 
 # Apply nest_asyncio for async playwright in script
@@ -194,12 +187,6 @@ def format_descriptions(state):
 
 def parse(text: str) -> dict:
     action_prefix = "Action: "
-    # if not text.strip().split("\n")[-1].startswith(action_prefix):
-    #     return {"action": "retry", "args": f"Could not parse LLM Output: {text}"}
-
-    # action_block = text.strip().split("\n")[-1]
-
-    # action_str = action_block[len(action_prefix) :]
     if action_prefix in text:
         action_str = text.strip().split("Action: ")[-1]
     else:
@@ -330,21 +317,36 @@ async def call_agent(question: str, page, max_steps: int = 150):
     return final_answer
 
 
-async def main():
-    browser = await async_playwright().start()
-    browser = await browser.chromium.launch(headless=False, args=None)
-    page = await browser.new_page()
-    _ = await page.goto("https://www.google.com")
-    await call_agent("Find me the latest news on CNN, summarize in 30 words", page)
-
-
 async def main_amgr():
     browser = await async_playwright().start()
     browser = await browser.chromium.launch(headless=False, args=None)
     page = await browser.new_page()
-    _ = await page.goto("https://www.amgr.org/frm_directorySearch.cfm")
+    await page.goto("https://www.amgr.org/frm_directorySearch.cfm")
     await call_agent("Find the contact details of all members", page)
 
 
+async def main_amgr_parameter(
+    state: str = "Kansas",
+    member: str = "Dwight Elmore",
+    breed: str = "(AR) – American Red",
+):
+    browser = await async_playwright().start()
+    browser = await browser.chromium.launch(headless=False, args=None)
+    page = await browser.new_page()
+    await page.goto("https://www.amgr.org/frm_directorySearch.cfm")
+    await call_agent(
+        f"Find breeder with this information: State: {state}, Member: {member}, Breed: {breed}",
+        page,
+    )
+
+
+async def main_shorthorn():
+    browser = await async_playwright().start()
+    browser = await browser.chromium.launch(headless=False, args=None)
+    page = await browser.new_page()
+    await page.goto("https://shorthorn.digitalbeef.com/")
+    await call_agent(f"Find all ranch", page)
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main_amgr())
