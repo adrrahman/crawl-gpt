@@ -88,6 +88,9 @@ async def main(task: str):
     browser = Browser(keep_alive=True)
     await browser.start()
 
+    if search_task.search_animal:
+        task += " Reference for Animal search: Radio button index 105 is bulls (index 100 is bulls for EPD search), index 106 is both (bulls & females), index 107 is females, index 108 is Registration #, index 109 is Tattoo, index 110 is Name, and index 111 is EID. Use search field box to enter search value"
+
     agent = Agent(
         task=task + " Use extract_structured_data tool to data as JSON list of dictionaries",
         llm=create_llm(),
