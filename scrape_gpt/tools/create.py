@@ -1,19 +1,10 @@
 import json
 import os
-from typing import List
 
 from browser_use import ActionResult, BrowserSession
-from pydantic import BaseModel, Field
-from scrapegraphai.graphs import SmartScraperGraph, SmartScraperMultiLiteGraph
+from scrapegraphai.graphs import SmartScraperGraph
 
-
-class ExtractInfoInput(BaseModel):
-    information_to_find: str = Field(
-        ..., description="what information to find on each subpage"
-    )
-    subpage_links_to_extract: List[str] = Field(
-        ..., description="a single subpage link to extract information from"
-    )
+from scrape_gpt.tools.extract_subpages import extract_info_from_subpages
 
 
 async def extract_links_from_dom(subpage_to_find: str, browser_session: BrowserSession):
@@ -54,36 +45,6 @@ async def extract_links_from_dom(subpage_to_find: str, browser_session: BrowserS
 
     except Exception as e:
         error_msg = f"❌ Extract links from DOM failed: {str(e)}"
-        return ActionResult(error=error_msg)
-
-
-async def extract_info_from_subpages(params: ExtractInfoInput):
-    """
-    Custom action that extract information from subpage links.
-    """
-    try:
-
-        scraper = SmartScraperMultiLiteGraph(
-            prompt=f"Extract {params['information_to_find']}",
-            source=params["subpage_links_to_extract"],
-            config={
-                "llm": {
-                    "api_key": os.getenv("OPENAI_API_KEY"),
-                    "model": "gpt-4.1-mini",
-                },
-            },
-        )
-        result = scraper.run()
-        success_msg = f'✅ Extracted {json.dumps(result)} from {params["subpage_links_to_extract"]}'
-
-        return ActionResult(
-            extracted_content=success_msg,
-            include_in_memory=True,
-            long_term_memory=success_msg,
-        )
-
-    except Exception as e:
-        error_msg = f"❌ Extract subpage(s) information failed: {str(e)}"
         return ActionResult(error=error_msg)
 
 
