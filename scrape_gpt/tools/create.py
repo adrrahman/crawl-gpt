@@ -2,8 +2,10 @@ import json
 import os
 
 from browser_use import ActionResult, BrowserSession
+from browser_use.filesystem.file_system import FileSystem
 from scrapegraphai.graphs import SmartScraperGraph
 
+from scrape_gpt.tools.export_dataframe import export_dataframe
 from scrape_gpt.tools.extract_subpages import extract_info_from_subpages
 
 
@@ -40,7 +42,7 @@ async def extract_links_from_dom(subpage_to_find: str, browser_session: BrowserS
         return ActionResult(
             extracted_content=success_msg,
             include_in_memory=True,
-            long_term_memory=f'Extracted {subpage_to_find} links with number of {len(result["content"])}',
+            long_term_memory=success_msg,
         )
 
     except Exception as e:
@@ -49,7 +51,7 @@ async def extract_links_from_dom(subpage_to_find: str, browser_session: BrowserS
 
 
 async def extract_current_page_info(
-    information_to_find: str, browser_session: BrowserSession
+    information_to_find: str, browser_session: BrowserSession, file_system: FileSystem
 ):
     """
     Custom action that extract information from current page.
@@ -77,12 +79,15 @@ async def extract_current_page_info(
             },
         )
         result = scraper.run()
-        success_msg = f"✅ Extracted {json.dumps(result)}"
+        extracted_content = json.dumps(result)
+
+        save_result = await file_system.save_extracted_content(extracted_content)
+        memory = f'Extracted content from for query: {information_to_find}\nContent saved to file system: {save_result} and displayed in <read_state>.'
 
         return ActionResult(
-            extracted_content=success_msg,
-            include_in_memory=True,
-            long_term_memory=success_msg,
+            extracted_content=extracted_content,
+            include_extracted_content_only_once=True,
+            long_term_memory=memory,
         )
 
     except Exception as e:
@@ -103,4 +108,8 @@ def create_tools():
     _ = tools.registry.action(
         "Extract information from current page using a specialized agent"
     )(extract_current_page_info)
+    _ = tools.registry.action(
+        "Export previous extracted_content_ to a pandas dataframe"
+    )(export_dataframe)
+
     return tools
