@@ -9,11 +9,11 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${file}",
-      "cwd": "${workspaceFolder}/scrape_gpt",
+      "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false,
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/scrape_gpt"
+        "PYTHONPATH": "${workspaceFolder}"
       }
     }
   ]
