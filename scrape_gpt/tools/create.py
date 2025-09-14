@@ -9,7 +9,7 @@ from scrape_gpt.tools.export_dataframe import export_dataframe
 from scrape_gpt.tools.extract_subpages import extract_info_from_subpages
 
 
-async def extract_links_from_dom(subpage_to_find: str, browser_session: BrowserSession):
+async def extract_links_from_dom(browser_session: BrowserSession):
     """
     Custom action that extract links from a webpage DOM.
     """
@@ -26,7 +26,7 @@ async def extract_links_from_dom(subpage_to_find: str, browser_session: BrowserS
         current_url = await browser_session.get_current_page_url()
 
         scraper = SmartScraperGraph(
-            prompt=f"Extract links leading to {subpage_to_find}. Use full URL not only relative path. Current url is "
+            prompt=f"Extract all links. Use full URL not only relative path. Current url is "
             + current_url,
             source=page_html,
             config={
@@ -37,7 +37,7 @@ async def extract_links_from_dom(subpage_to_find: str, browser_session: BrowserS
             },
         )
         result = scraper.run()
-        success_msg = f'✅ Extracted {json.dumps(result["content"])} links leading to {subpage_to_find}'
+        success_msg = f'✅ Extracted links {json.dumps(result["content"])}'
 
         return ActionResult(
             extracted_content=success_msg,
