@@ -1,19 +1,16 @@
 
-import json
-import pandas as pd
 import os
 from typing import Any, Dict, List
 
+import pandas as pd
 from browser_use import ActionResult
-from browser_use.llm import BaseChatModel
-from browser_use.llm.messages import SystemMessage, UserMessage
-from browser_use.filesystem.file_system import FileSystem, CsvFile
-from langchain_openai import ChatOpenAI
+from browser_use.filesystem.file_system import CsvFile, FileSystem
+from dotenv import load_dotenv
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
-
-from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
+
 load_dotenv()
 
 desc = "Export previous extracted information to a pandas dataframe."
@@ -76,6 +73,7 @@ async def export_dataframe(file_to_export: List[str], file_system: FileSystem):
         content_example = df.head().to_string()
         file_obj = CsvFile(name=initial_filename, content=content_example)
         df.to_csv(file_system.data_dir / extracted_filename, index=False)
+        df.to_csv(file_system.base_dir.parent / extracted_filename, index=False)
         file_system.files[extracted_filename] = file_obj
         file_system.extracted_content_count += 1
 
