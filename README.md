@@ -49,7 +49,9 @@
 Run this command
 
 ```
-python -m scrape_gpt.app --prompt "navigate https://shorthorn.digitalbeef.com/ do Ranch search with herd prefix 'prnl' member id '01-00927' name 'james' city 'stantons'"
+python -m scrape_gpt.chat --session_id "medrecruit" --link "https://medrecruit.medworld.com/jobs/list?location=New+South+Wales&page=1" --prompt "visit first 3 job details page from page 1-3 (total 9 jobs); extract job title, company name, location, salary, job type, experience level, date posted and job description."
+
+python -m scrape_gpt.chat --session_id "medrecruit" --prompt "Filter data that have pay higher than $2,500 per day only."
 ```
 
 # Contributing
