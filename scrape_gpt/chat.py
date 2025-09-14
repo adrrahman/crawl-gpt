@@ -1,11 +1,17 @@
 import asyncio
+import glob
 import json
 import os
 
 import nest_asyncio
 import pandas as pd
-from browser_use import Agent, Browser, ChatOpenAI
+from browser_use import Agent, ChatOpenAI
 from dotenv import load_dotenv
+from langchain.agents.agent_types import AgentType
+from langchain_core.utils.json import parse_json_markdown
+from langchain_experimental.agents.agent_toolkits import \
+    create_pandas_dataframe_agent
+from langchain_openai import ChatOpenAI
 
 from scrape_gpt.tools.create import create_tools
 
@@ -17,7 +23,14 @@ with open("scrape_gpt/prompt/system.md", "r") as f:
 
 
 async def main(session_id: str, prompt: str, link: str = None):
-    if link:
+    chat_history_path = f"./.session_data/{session_id}/chat_history.json"
+    if os.path.exists(chat_history_path):
+        with open(chat_history_path, "r") as f:
+            chat_history = json.load(f)
+    else:
+        chat_history = []
+
+    if link: # TODO: create route to BrowseAgent or DataFrameAgent
         tools = create_tools()
         agent = Agent(
             task=f"""
@@ -34,23 +47,37 @@ async def main(session_id: str, prompt: str, link: str = None):
             tools=tools,
         )
         history = await agent.run()
-    else:
-        print("Please provide a link to start with.")
-    
-    chat_history_path = f"./.session_data/{session_id}/chat_history.json"
-    if os.path.exists(chat_history_path):
-        with open(chat_history_path, "r") as f:
-            chat_history = json.load(f)
-    else:
-        chat_history = []
-    chat_history.append({"role": "user", "text": prompt, "link": link})
-    csv_path = list(agent.file_system.files)[-1]
-    results = pd.read_csv(agent.file_system.data_dir / csv_path).to_dict(orient='records')
-    chat_history.append({"role": "assistant", "text": history.final_result(), "results": results})
-    with open(chat_history_path, "w") as f:
-        json.dump(chat_history, f, indent=4)
 
-    return history.final_result(), results
+        chat_history.append({"role": "user", "text": prompt, "link": link})
+        csv_path = list(agent.file_system.files)[-1]
+        results = pd.read_csv(agent.file_system.data_dir / csv_path).to_dict(orient='records')
+        chat_history.append({"role": "assistant", "text": history.final_result(), "results": results})
+        with open(chat_history_path, "w") as f:
+            json.dump(chat_history, f, indent=4)
+
+        return history.final_result(), results
+    else:
+        dframe_paths = glob.glob(f"./.session_data/{session_id}/*.csv")
+        dframes = []
+        for path in dframe_paths:
+            dframes.append(pd.read_csv(path))
+        agent = create_pandas_dataframe_agent(
+            ChatOpenAI(temperature=0, model="gpt-4.1", api_key=os.getenv("OPENAI_API_KEY")),
+            dframes,
+            verbose=True,
+            agent_type=AgentType.OPENAI_FUNCTIONS,
+            allow_dangerous_code=True,
+        )
+        agent_result = agent.invoke(prompt + "\nReturn in json format")
+        results = parse_json_markdown(agent_result["output"])
+
+        chat_history.append({"role": "user", "text": prompt})
+        chat_history.append({"role": "assistant", "text": agent_result["output"], "results": results})
+
+        with open(chat_history_path, "w") as f:
+            json.dump(chat_history, f, indent=4)
+        
+        return agent_result["output"], results
 
 
 if __name__ == "__main__":
@@ -62,6 +89,13 @@ if __name__ == "__main__":
     #     )
     # )
 
+    asyncio.run(
+        main(
+            session_id="medrecruit",
+            prompt="Filter data that have pay higher than $2,500 per day only.",
+        )
+    )
+
     # asyncio.run(
     #     main(
     #         session_id="club",
@@ -70,10 +104,10 @@ if __name__ == "__main__":
     #     )
     # )
 
-    asyncio.run(
-        main(
-            session_id="printer",
-            link="https://support.hp.com/us-en/drivers/printers",
-            prompt="Visit first 5 popular printer links, save details about printer name, software/drivers, version, file size, etc",
-        )
-    )
+    # asyncio.run(
+    #     main(
+    #         session_id="printer",
+    #         link="https://support.hp.com/us-en/drivers/printers",
+    #         prompt="Visit first 5 popular printer links, save details about printer name, software/drivers, version, file size, etc",
+    #     )
+    # )
