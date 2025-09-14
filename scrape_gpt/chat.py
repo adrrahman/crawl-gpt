@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import glob
 import json
@@ -11,7 +12,7 @@ from langchain.agents.agent_types import AgentType
 from langchain_core.utils.json import parse_json_markdown
 from langchain_experimental.agents.agent_toolkits import \
     create_pandas_dataframe_agent
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI as LangChainChatOpenAI
 
 from scrape_gpt.tools.create import create_tools
 
@@ -62,7 +63,7 @@ async def main(session_id: str, prompt: str, link: str = None):
         for path in dframe_paths:
             dframes.append(pd.read_csv(path))
         agent = create_pandas_dataframe_agent(
-            ChatOpenAI(temperature=0, model="gpt-4.1", api_key=os.getenv("OPENAI_API_KEY")),
+            LangChainChatOpenAI(temperature=0, model="gpt-4.1", api_key=os.getenv("OPENAI_API_KEY")),
             dframes,
             verbose=True,
             agent_type=AgentType.OPENAI_FUNCTIONS,
@@ -80,7 +81,7 @@ async def main(session_id: str, prompt: str, link: str = None):
         return agent_result["output"], results
 
 
-if __name__ == "__main__":
+def example():
     # asyncio.run(
     #     main(
     #         session_id="medrecruit",
@@ -111,3 +112,31 @@ if __name__ == "__main__":
     #         prompt="Visit first 5 popular printer links, save details about printer name, software/drivers, version, file size, etc",
     #     )
     # )
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Run scraping agents.")
+    parser.add_argument(
+        "--session_id",
+        type=str,
+        required=True,
+        help="Specify session id to run",
+    )
+    parser.add_argument(
+        "--link",
+        type=str,
+        default="",
+        help="Specify link to start with",
+    )
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        required=True,
+        help="Specify description to run",
+    )
+    args = parser.parse_args()
+    text, results = asyncio.run(main(args.session_id, args.prompt, args.link))
+    
+    print("TEXT: ", text)
+    print("RESULTS: ", results)
